@@ -14,7 +14,7 @@ $$
 H \in \mathbb{R}^{m \times n}
 $$
 
-onde cada entrada \(H_{i,j}\) define a altitude da célula \((i,j)\), desejamos:
+onde cada entrada \($$H_{i,j}\$$) define a altitude da célula \($$(i,j)\$$), desejamos:
 
 **Encontrar o caminho de menor custo entre dois pontos do terreno, penalizando movimentos que impliquem grandes variações de altura.**
 
@@ -26,7 +26,7 @@ Operacionalmente:
 
 Para resolver o problema, convertemos o terreno em um grafo ponderado:
 
-- Cada célula \((i,j)\) torna-se um vértice.
+- Cada célula \($$(i,j)\$$) torna-se um vértice.
 - Células adjacentes são conectadas por arestas (4 ou 8 vizinhos).
 - Cada aresta recebe um peso não-negativo que depende:
   - da distância plana;
