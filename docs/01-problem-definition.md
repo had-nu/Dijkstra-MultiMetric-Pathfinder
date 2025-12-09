@@ -9,11 +9,11 @@ Nessa realidade, a escolha do caminho depende não apenas da distância, mas tam
 ## 2. Problema Central
 
 Dado um terreno representado como uma matriz de alturas:
-
+```
 \[
 H \in \mathbb{R}^{m \times n}
 \]
-
+```
 onde cada entrada \(H_{i,j}\) define a altitude da célula \((i,j)\), desejamos:
 
 **Encontrar o caminho de menor custo entre dois pontos do terreno, penalizando movimentos que impliquem grandes variações de altura.**
@@ -38,7 +38,7 @@ Este grafo reflete diretamente características físicas do ambiente.
 ## 4. Natureza do Custo
 
 O custo de mover-se de \((i,j)\) para \((k,l)\) é definido por:
-
+```
 \[
 w((i,j),(k,l)) = d_{\text{plano}} \cdot \left( 1 + \alpha \cdot |\Delta h| \right)
 \]
@@ -49,11 +49,11 @@ onde:
 - \(\Delta h = H_{k,l} - H_{i,j}\);
 - \(\alpha\) controla o impacto da inclinação;
 - todos os custos são não-negativos, atendendo ao requisito do algoritmo de Dijkstra.
-
+```
 ## 5. Formulação Formal
 
 Dado o grafo:
-
+```
 \[
 G = (V, E, w)
 \]
@@ -67,7 +67,7 @@ e dois vértices \(s\) (start) e \(t\) (target), queremos um caminho \(P\) tal q
 \[
 \text{e } \text{cost}(P) = \min_{P' \in \mathcal{P}_{s \to t}} \text{cost}(P')
 \]
-
+```
 ## 6. Papel do Algoritmo de Dijkstra
 
 O algoritmo de Dijkstra encontra o caminho de menor custo em grafos com pesos não-negativos.  
