@@ -14,9 +14,9 @@ $$
 H \in \mathbb{R}^{m \times n}
 $$
 
-onde cada entrada \($$H_{i,j}\$$) define a altitude da célula \($$(i,j)\$$), desejamos:
+onde cada entrada $$\(H_{i,j}\)$$ define a altitude da célula $$\((i,j)\)$$, desejamos:
 
-**Encontrar o caminho de menor custo entre dois pontos do terreno, penalizando movimentos que impliquem grandes variações de altura.**
+*Encontrar o caminho de menor custo entre dois pontos do terreno, penalizando movimentos que impliquem grandes variações de altura.*
 
 Operacionalmente:
 
@@ -26,18 +26,18 @@ Operacionalmente:
 
 Para resolver o problema, convertemos o terreno em um grafo ponderado:
 
-- Cada célula \($$(i,j)\$$) torna-se um vértice.
+- Cada célula $$\((i,j)\)$$ torna-se um vértice.
 - Células adjacentes são conectadas por arestas (4 ou 8 vizinhos).
 - Cada aresta recebe um peso não-negativo que depende:
   - da distância plana;
   - da variação de altura entre as células;
-  - de um fator multiplicador \(\alpha\).
+  - de um fator multiplicador $$\(\alpha\)$$.
 
 Este grafo reflete diretamente características físicas do ambiente.
 
 ## 4. Natureza do Custo
 
-O custo de mover-se de \((i,j)\) para \((k,l)\) é definido por:
+O custo de mover-se de $$\((i,j)\)$$ para $$\((k,l)\)$$ é definido por:
 
 $$
 w((i,j),(k,l)) = d_{\text{plano}} \cdot \left( 1 + \alpha \cdot |\Delta h| \right)
@@ -45,9 +45,9 @@ $$
 
 onde:
 
-- \(d_{\text{plano}} \in \{1, \sqrt{2}\}\);
-- \(\Delta h = H_{k,l} - H_{i,j}\);
-- \(\alpha\) controla o impacto da inclinação;
+- $$\(d_{\text{plano}} \in \{1, \sqrt{2}\}\)$$;
+- $$\(\Delta h = H_{k,l} - H_{i,j}\)$$;
+- $$\(\alpha\)$$ controla o impacto da inclinação;
 - todos os custos são não-negativos, atendendo ao requisito do algoritmo de Dijkstra.
 
 ## 5. Formulação Formal
@@ -88,7 +88,7 @@ Este módulo:
 
 ## 8. Limites do Escopo
 
-Este módulo **não** envolve:
+Este módulo *não* envolve:
 
 - incerteza probabilística;
 - ruído de sensores;
