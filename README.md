@@ -150,9 +150,9 @@ Os principais documentos encontram-se em `docs/`:
 ## 9. Referências Canónicas
 
 - *Artificial Intelligence: A Modern Approach* — Russell & Norvig  
-- *Introduction to Algorithms* — Cormen, Leiserson, Rivest e Stein (CLRS)  
-- Material clássico de grafos, busca e otimização  
-- Artigos e notas sobre navegação robótica e modelagem de terreno
+- *Introduction to Algorithms* — Cormen, Leiserson, Rivest e Stein (CLRS | Teoria dos Grafos e Algoritmos)  
+- *The Art of Computer Programming, Volume 1: Fundamental Algorithms* — Donald Knuth (Busca e Estruturas de Dados)
+- *Bayesian Generalized Kernel Inference for Terrain Traversability Mapping* — Shan, T., Wang, J., Englot, B., & Doherty, K. (Rough Terrain Navigation)
 
 ---
 
