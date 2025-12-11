@@ -68,6 +68,12 @@ $$
 \text{e } \text{cost}(P) = \min_{P' \in \mathcal{P}_{s \to t}} \text{cost}(P')
 $$
 
+Em bom português: no grafo $$G$$, o objetivo é encontrar o caminho $$P$$ entre os pontos inicial $$(s)$$ e final $$(t)$$ cuja soma dos pesos das arestas seja a menor possível.
+
+Ou seja, buscamos um caminho ótimo $$(P^*)$$ de *s* a *t* que minimize a função de custo $$\text{cost}(P)$$, sendo essa função definida pela soma dos pesos $$w(e)$$ de todas as arestas $$e$$ que compõem o caminho $$P$$.
+
+Ou ainda: o problema se resume a *identificar a sequência de movimentos (arestas)* de *s* para *t* que resulta no *custo acumulado (ou esforço) mínimo*, onde o custo de cada movimento é dado pelo *peso da aresta $$w(e)$$*.
+
 ## 6. Papel do Algoritmo de Dijkstra
 
 O algoritmo de Dijkstra encontra o caminho de menor custo em grafos com pesos não-negativos.  
