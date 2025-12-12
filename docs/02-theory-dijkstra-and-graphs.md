@@ -206,6 +206,68 @@ Vamos aplicar a lógica de Dijkstra para os primeiros passos da nossa viagem de 
 
 O algoritmo continuaria este processo, sempre escolhendo o nó de menor custo total na fronteira, até que o nó objetivo (Bucareste) seja selecionado para expansão. Nesse momento, temos a garantia de ter encontrado o caminho de menor custo total.
 
+> **Nota:** *O número de vértices visitados será sempre igual ao numero de iterações do algoritmo.*
+
+> **Nota:** *O algoritmo de Dijkstra encontra o caminho de custo mínimo absoluto, mas não necessariamente o caminho mais curto.*
+
+> **Nota:** *O valor do vértice iterado fica imutável uma vez que ele é expandido e não poderá ser escolhido novamente para iterar.*
+
+### 8.3.1. Exemplo de Resolução Dijkstra
+
+Vamos ilustrar o processo de Dijkstra com um pequeno grafo de 5 nós (A, B, C, D, E) e pesos aleatórios. O objetivo é encontrar o caminho de custo mínimo de 'A' para todos os outros nós.
+
+**Grafo:**
+*   A -> B (4)
+*   A -> C (2)
+*   B -> C (1)
+*   B -> D (5)
+*   C -> D (8)
+*   C -> E (10)
+*   D -> E (2)
+
+**Tabela de Resolução:**
+
+| Passo | Nó Expandido | Nó | Custo de A | Predecessor | Fronteira (Nó:Custo) |
+| :---- | :----------- | :-- | :--------- | :---------- | :------------------- |
+| **0** | - | A | 0 | - | {A:0} |
+| | | B | ∞ | - | |
+| | | C | ∞ | - | |
+| | | D | ∞ | - | |
+| | | E | ∞ | - | |
+| **1** | **A** | A | 0 | - | {B:4, C:2} |
+| | | B | 4 | A | |
+| | | C | 2 | A | |
+| | | D | ∞ | - | |
+| | | E | ∞ | - | |
+| **2** | **C** | A | 0 | - | {B:3, D:10, E:12} |
+| | | B | 3 | C | |
+| | | C | 2 | A | |
+| | | D | 10 | C | |
+| | | E | 12 | C | |
+| **3** | **B** | A | 0 | - | {D:8, E:12} |
+| | | B | 3 | C | |
+| | | C | 2 | A | |
+| | | D | 8 | B | |
+| | | E | 12 | C | |
+| **4** | **D** | A | 0 | - | {E:10} |
+| | | B | 3 | C | |
+| | | C | 2 | A | |
+| | | D | 8 | B | |
+| | | E | 10 | D | |
+| **5** | **E** | A | 0 | - | {} |
+| | | B | 3 | C | |
+| | | C | 2 | A | |
+| | | D | 8 | B | |
+| | | E | 10 | D | |
+
+**Resultados Finais (Caminhos Mínimos de A):**
+*   A -> A: Custo 0
+*   A -> B: Custo 3 (A -> C -> B)
+*   A -> C: Custo 2 (A -> C)
+*   A -> D: Custo 8 (A -> C -> B -> D)
+*   A -> E: Custo 10 (A -> C -> B -> D -> E)
+
+
 ### 8.4. A Condição de Ouro
 
 E aqui reside a genialidade do algoritmo de Dijkstra: com uma regra gananciosa tão simples, ele nos dá a garantia de ouro de encontrar o caminho de custo mínimo absoluto. No entanto, esta garantia depende de uma restrição fundamental: o algoritmo só funciona *se não houver arestas com pesos negativos*. A lógica do algoritmo baseia-se na premissa de que, uma vez que um nó é expandido, o custo para chegar até ele é o menor possível. Um peso negativo poderia quebrar essa garantia, pois permitiria que um caminho mais longo (em número de passos) se tornasse, subitamente, mais "barato" no futuro, invalidando as decisões gananciosas já tomadas.
