@@ -163,7 +163,7 @@ A escolha entre BFS e DFS depende inteiramente dos requisitos do problema.
 | **Complexidade de Tempo** | $$O(b^d)$$ | $$O(b^m)$$ |
 | **Complexidade de Espaço** | $$O(b^d)$$ | $$O(bm)$$ |
 
-> Legenda: $$b$$ é o fator de ramificação (número médio de vizinhos), $$d$$ é a profundidade da solução mais rasa, e $$m$$ é a profundidade máxima do grafo.
+*> Legenda: $$b$$ é o fator de ramificação (número médio de vizinhos), $$d$$ é a profundidade da solução mais rasa, e $$m$$ é a profundidade máxima do grafo.*
 
 A Busca em Largura deu-nos o caminho com menos paragens. Mas será esse sempre o melhor caminho? E se uma rota com mais cidades for, na verdade, centenas de quilómetros mais curta? Precisamos de um algoritmo que leve os pesos das arestas em consideração.
 
@@ -179,7 +179,7 @@ Este algoritmo é amplamente conhecido na ciência da computação como Algoritm
 
 A sua lógica é elegantemente simples e gananciosa (greedy):
 
-> A cada passo, expanda o nó na fronteira que possui o menor custo total acumulado desde o ponto de partida.
+> *A cada passo, expanda o nó na fronteira que possui o menor custo total acumulado desde o ponto de partida.*
 
 Aqui reside uma das mais belas ideias da algoritmia. A Busca em Largura (BFS) usa uma fila normal, onde a regra é "primeiro a entrar, primeiro a sair". O Algoritmo de Dijkstra simplesmente troca essa fila por uma "fila de prioridade", onde a regra passa a ser "o de menor custo acumulado, o próximo a sair". Essa pequena mudança na estrutura de dados transforma um algoritmo que encontra o caminho com menos passos num algoritmo que encontra o caminho com menor custo, uma evolução poderosa.
 
@@ -206,7 +206,7 @@ Vamos aplicar a lógica de Dijkstra para os primeiros passos da nossa viagem de 
 
 O algoritmo continuaria este processo, sempre escolhendo o nó de menor custo total na fronteira, até que o nó objetivo (Bucareste) seja selecionado para expansão. Nesse momento, temos a garantia de ter encontrado o caminho de menor custo total.
 
-> **Nota:** *O número de vértices visitados será sempre igual ao numero de iterações do algoritmo.*
+> **Nota:** *O número de vértices visitados será sempre igual ao número de iterações do algoritmo.*
 
 > **Nota:** *O algoritmo de Dijkstra encontra o caminho de custo mínimo absoluto, mas não necessariamente o caminho mais curto.*
 
@@ -214,16 +214,16 @@ O algoritmo continuaria este processo, sempre escolhendo o nó de menor custo to
 
 ### 8.3.1. Exemplo de Resolução Dijkstra
 
-Vamos ilustrar o processo de Dijkstra com um pequeno grafo de 5 nós (A, B, C, D, E) e pesos aleatórios. O objetivo é encontrar o caminho de custo mínimo de 'A' para todos os outros nós.
+Vamos ilustrar o processo de Dijkstra com um pequeno grafo *não-direcionado* de 5 nós (A, B, C, D, E) e pesos aleatórios. O objetivo é encontrar o caminho de custo mínimo de 'A' para todos os outros nós.
 
-**Grafo:**
-*   A -> B (4)
-*   A -> C (2)
-*   B -> C (1)
-*   B -> D (5)
-*   C -> D (8)
-*   C -> E (10)
-*   D -> E (2)
+**Grafo (arestas bidirecionais):**
+*   A - B (4)
+*   A - C (2)
+*   B - C (1)
+*   B - D (5)
+*   C - D (8)
+*   C - E (10)
+*   D - E (2)
 
 **Tabela de Resolução:**
 
@@ -267,6 +267,8 @@ Vamos ilustrar o processo de Dijkstra com um pequeno grafo de 5 nós (A, B, C, D
 *   A -> D: Custo 8 (A -> C -> B -> D)
 *   A -> E: Custo 10 (A -> C -> B -> D -> E)
 
+Note que o algoritmo inicialmente "conhece" um caminho para B custando 4, mas depois atualiza essa crença ao descobrir uma rota mais barata através de um intermediário. Isso combate a intuição errada de que "o caminho direto é sempre melhor". O Dijkstra não tem "preguiça" de dar voltas. Ele prefere um caminho geograficamente tortuoso se a "estrada" for mais rápida (menos custosa).
+
 
 ### 8.4. A Condição de Ouro
 
@@ -276,7 +278,7 @@ Partimos de um problema de viagem, o modelamos como um grafo e, em seguida, apli
 
 ### 8.5. Ideia Central do Algoritmo
 
-Dijkstra segue uma estratégia gananciosa:
+Dijkstra segue uma estratégia gananciosa (greedy):
 
 - mantém uma estimativa da menor distância até cada vértice;
 - usa relaxamento para atualizar estimativas;
