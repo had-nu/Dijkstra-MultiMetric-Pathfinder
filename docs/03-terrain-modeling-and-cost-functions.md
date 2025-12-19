@@ -1,6 +1,7 @@
 # Terrain Modeling and Cost Functions
 
 Este documento descreve como o terreno é convertido em grafo ponderado e como são definidos os pesos (custos) das arestas.  
+
 A modelagem é um ponto central do projeto, pois determina como o algoritmo de Dijkstra interpreta e optimiza deslocamentos sobre um relevo não-uniforme.
 
 ---
