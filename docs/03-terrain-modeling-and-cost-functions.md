@@ -1,220 +1,164 @@
 # Terrain Modeling and Cost Functions
 
-Este documento descreve como o terreno é convertido em grafo ponderado e como são definidos os pesos (custos) das arestas.  
+Este documento detalha a metodologia de conversão de dados topográficos brutos em uma estrutura de grafo ponderado, adequada para algoritmos de caminho mínimo como Dijkstra e A*.  
 
-A modelagem é um ponto central do projeto, pois determina como o algoritmo de Dijkstra interpreta e optimiza deslocamentos sobre um relevo não-uniforme.
+A modelagem ultrapassa a simples conectividade de grade, integrando restrições físicas e custos energéticos para simular a navegação de um agente sobre um relevo não-uniforme.
 
 ---
 
 ## 1. Representação do Terreno
 
-Um terreno discreto é representado como uma matriz de alturas:
+O terreno é discretizado como um Grid de Elevação (Digital Elevation Model - DEM), representado formalmente pela matriz $$\(H\)$$:
 
 $$
 H \in \mathbb{R}^{m \times n}
 $$
 
-onde:
+Onde $$\(H_{i,j}\)$$ representa a cota (altitude) absoluta da célula nas coordenadas discretas $$\(i, j\)$$. Ou seja, na linha $$\(i\)$$ e coluna $$\(j\)$$. 
 
-- $$\(H_{i,j}\)$$ é a altitude da célula localizada na linha $$\(i\)$$ e coluna $$\(j\)$$;
-- cada célula corresponde a uma posição física no espaço 2D;
-- a escala vertical e horizontal é arbitrária, mas consistente.
+Propriedades do Espaço:
 
-Esta matriz pode ser:
-
-- definida manualmente;
-- gerada proceduralmente;
-- derivada de dados reais (ex.: mapas digitais de elevação);
-- simulada com valores sintéticos.
+- Resolução $$\(\delta\)$$: A distância física entre os centros de duas células adjacentes (ex: 1 metro/pixel).
+- Consistência: Assume-se que a resolução é uniforme nos eixos X e Y.
 
 ---
 
-## 2. Discretização e Vizinhança
+## 2. Topologia e Vizinhança
 
-Cada célula $$\((i,j)\)$$ torna-se um vértice do grafo:
-
-$$
-v_{i,j} \in V
-$$
-
-As arestas conectam células adjacentes. Há duas convenções possíveis:
-
-### **2.1. 4-vizinhos (Von Neumann)**
-
-Conecta apenas células ortogonais:
+Para converter a matriz em grafo $$G=(V,E)$$, cada célula $$\((i,j)\)$$ é mapeada para um vértice $$\(v_{i,j}\)$$. A conectividade é definida pela topologia de Moore (8-vizinhos), essencial para permitir trajetórias mais orgânicas e evitar o efeito "Manhattan" (zigue-zague excessivo).
 
 $$
-N_4(i,j) = \{(i+1,j),\,(i-1,j),\,(i,j+1),\,(i,j-1)\}
+N8(i,j)={(k,l):max(|k-i|,|l-j|)=1}
 $$
 
-Características:
-
-- topologia mais simples;
-- sem movimentos diagonais;
-- custo geométrico mais fácil de interpretar.
-
-### **2.2. 8-vizinhos (Moore)**
-
-Conecta ortogonais e diagonais:
-
-$$
-N_8(i,j) = N_4(i,j) \cup \{(i+1,j+1),(i+1,j-1),(i-1,j+1),(i-1,j-1)\}
-$$
-
-Características:
-
-- permite caminhos mais suaves;
-- aproxima melhor o espaço contínuo;
-- exige cuidado ao definir a distância plana.
-
-Este projeto adota *N_8* por ser mais realista para navegação robótica.
+Isso resulta em um grafo onde o grau máximo de qualquer vértice é $$8\(deg(v)\leq 8\)$$. 
 
 ---
 
-## 3. Distância Plana
+## 3. Geometria do Movimento (Distância 3D)
 
-O custo base do movimento depende da geometria da vizinhança.
+Diferente de abordagens simplistas que consideram apenas a distância planar, este modelo calcula a Distância Euclidiana 3D real percorrida pelo agente.
+
+Ao mover-se de $$\((i,j)$$ para $$\((k,l)$$, a distância planar base $$\(d_{xy}\)$$ é:
 
 $$
-d_{\text{plano}} =
-\begin{cases}
-1 & \text{movimento ortogonal} \\
-\sqrt{2} & \text{movimento diagonal}
-\end{cases}
+d_{xy}(u,v) = \delta \cdot \sqrt{(k-i)^2 + (l-j)^2}
 $$
 
-Esta definição aproxima a distância euclidiana entre centros de células adjacentes.
+A distância física real $$\(d_{3D}\)$$, considerando o desnível $$\(\Delta h = H_v - H_u\)$$, é dada por pitágoras em 3 dimensões:
+
+$$
+d_{3D}(u,v) = \sqrt{d_{xy}^2 + \Delta h^2}
+$$
+
+Nota: Utilizar $$\(d_{3D}\)$$ penaliza naturalmente caminhos íngremes simplesmente porque eles são mais longos do que a sua projeção no plano.
 
 ---
 
-## 4. Inclinação Local e Desníveis
+## 4. Análise de Inclinação e Transversalidade
 
-Ao mover-se de uma célula $$\((i,j)\)$$ para uma vizinha $$\((k,l)\)$$, a variação de altura local é:
+Antes de calcular o custo, avaliamos a viabilidade física da aresta. Um agente possui limites mecânicos (torque, atrito, centro de massa).
+
+Definimos a inclinação $$\(\Theta\)$$ (em radianos) da aresta como:
 
 $$
-\Delta h = H_{k,l} - H_{i,j}
+\Theta=arctan(dxy\mid\Delta h\mid)
 $$
 
-Interpretação física:
+### 4.1. Corte de Transversalidade (Hard Constraint)
 
-- $$\(\Delta h > 0\)$$: subida;  
-- $$\(\Delta h < 0\)$$: descida;  
-- $$\(|\Delta h|\)$$: magnitude do desnível independentemente do sentido.
+Se a inclinação excede o limite crítico do robô ($$\(\Theta_{max}\)$$), a aresta é considerada intransponível (obstáculo):
 
-Robôs terrestres raramente possuem simetria perfeita entre consumo energético em subidas e descidas, mas para fins educacionais adotamos penalização simétrica.
+$$
+se \(\Theta>\Theta_{max}\)⟹w(u,v)=∞
+$$
+
+Isso remove efetivamente a aresta do conjunto $$\(E\)$$, criando barreiras naturais baseadas na topografia.
 
 ---
 
-## 5. Função de Custo
+## 5. Função de Custo Composta
 
-O custo total para mover-se da célula $$\((i,j)\)$$ para $$\((k,l)\)$$ é:
+Se a aresta é transponível $$(\Theta\leq\Theta_{max})$$, o custo w(u,v) é modelado como uma função do esforço estimado. Utilizamos uma abordagem híbrida que combina distância e penalidade por esforço.
 
 $$
-w((i,j),(k,l)) = d_{\text{plano}} \cdot \left( 1 + \alpha \cdot |\Delta h| \right)
+w(u,v)=d_{3D}(u,v)\cdot(1+K_p\cdot P(\Theta))
 $$
 
 Onde:
 
-- $$\(d_{\text{plano}}\)$$ representa o custo básico geométrico;
-- $$\(|\Delta h|\)$$ representa a dificuldade da transição vertical;
-- $$\(\alpha \in \mathbb{R}_{\ge 0}\)$$ ajusta a sensibilidade à inclinação.
+    - $$d_{3D}$$: O custo base (caminho mais curto geométrico).
 
-### **Interpretação de $$\(\alpha\)$$:**
+    - $$K_p$$: Coeficiente de penalidade (ajuste de engenharia, "peso do esforço").
 
-- $$\(\alpha = 0\)$$: terreno plano → o problema vira “apenas distância”;  
-- $$\(\alpha > 0\)$$: inclinação passa a influenciar fortemente o custo;  
-- $$\(\alpha \gg 1\)$$: o algoritmo evita drasticamente regiões inclinadas.
+    - $$P(\Theta)$$: Função de penalidade baseada na inclinação.
 
-$$\(\alpha\)$$ funciona como um parâmetro de engenharia.
+### 5.1 Modelos de Penalidade $$(P(\Theta))$$
 
----
+Existem duas abordagens implementadas para o cálculo da penalidade:
 
-## 6. Justificativa para Custos Não-Negativos
+#### A. Modelo Linear (Simplificado)
 
-O algoritmo de Dijkstra **exige que todos os pesos sejam não-negativos**.  
-A função acima garante isto porque:
-
-- $$\(d_{\text{plano}} > 0\)$$;
-- $$\(|\Delta h| \ge 0\)$$;
-- $$\(\alpha \ge 0\)$$.
-
-Isso preserva a monotonicidade das estimativas de custo e garante a correção formal do algoritmo.
-
----
-
-## 7. Normalização Opcional (para terrenos reais)
-
-Terrenos complexos podem ter:
-
-- variações abruptas de altura;  
-- ranges muito diferentes entre dimensões X/Y/Z;  
-- gradientes extremamente amplos.
-
-Para manter o custo numérico estável, pode-se usar uma normalização opcional:
+Assume que o custo aumenta proporcionalmente à inclinação. Bom para validação algorítmica simples.
 
 $$
-\Delta h_{\text{norm}} = \frac{\Delta h}{\max |H| }
+P(\Theta)=d_{xy}\mid\Delta h\mid=tan(\Theta)
 $$
 
-Ou usar uma versão delimitada por quantis.  
-Esta normalização não altera a estrutura teórica, apenas facilita experimentação.
+#### B. Modelo Exponencial (Realista)
 
----
-
-## 8. Construção do Grafo
-
-O grafo final é definido como:
+Simula o aumento drástico de consumo energético ou risco de deslizamento conforme a inclinação se aproxima do limite crítico.
 
 $$
-G = (V, E, w)
+P(\Theta)=e^{\beta\cdot\Theta_{max}\cdot\Theta^{-1}}
 $$
 
-onde:
-
-- $$\(V = \{ v_{i,j} \mid 0 \le i < m,\, 0 \le j < n \}\)$$
-- $$\(E = \{ (v_{i,j}, v_{k,l}) \mid (k,l) \in N_8(i,j) \}\)$$
-- $$\(w\)$$ segue a função definida acima.
-
-Características:
-
-- Grafo quase-regular (cada vértice tem até 8 vizinhos).
-- Ponderado por propriedades físicas simples.
-- Completamente determinístico.
+Onde $$\(\beta\)$$ controla a "agressividade" da curva de custo.
 
 ---
 
-## 9. Mapa de Custos e Interpretação
+## 6. Assimetria de Custo (Direcionalidade)
 
-A função de custo induz uma paisagem de energia onde:
+Em cenários de alta fidelidade, o grafo é direcionado ($$w(u,v)\neq w(v,u)$$).
 
-- regiões com desníveis acentuados tornam-se “montes de custo”;  
-- vales e planícies tornam-se corredores de baixo custo;  
-- movimentos diagonais são mais longos, mas nem sempre mais caros;  
-- caminhos “visualmente curtos” podem se tornar energeticamente desfavoráveis.
+- Subida ($$\Delta h>0$$): Custo alto (trabalho contra a gravidade).
 
-A análise da trajetória final permite observar como a geometria e a topografia moldam a solução.
+- Descida ($$\Delta h<0$$):
 
----
+    - Caso Simples: Custo reduzido (ajuda da gravidade).
 
-## 10. Relação com Planeamento Robótico
+    - Caso Robótico: Custo moderado (necessidade de frenagem ativa para não perder controle).
 
-Esta modelagem é uma aproximação válida para:
-
-- rovers terrestres;  
-- AMRs industriais;  
-- UAVs em navegação 2.5D;  
-- robôs educativos que percorrem mapas discretos.
-
-Embora simplificada, ela captura os elementos essenciais:
-
-- deslocamento planar;
-- variação de altitude;
-- custo energético aproximado;
-- busca por trajetórias fisicamente coerentes.
+Para este projeto, adotamos uma Penalização Simétrica Conservadora (assumindo que descer uma ladeira íngreme é tão perigoso/custoso quanto subi-la), garantindo robustez e simplificando a heurística para o A*.
 
 ---
 
-## 11. Preparação para os Experimentos
+## 7. Propriedades Formais do Grafo Resultante
+
+O processo de modelagem resulta em um grafo $$G=(V,E,w)$$ com as seguintes garantias para o algoritmo de Dijkstra:
+
+1. Não-Negatividade: $$w(e)\geq 0$$ para todo $$e\in E$$. Isso é garantido pois $$d_{3D}>0$$ e os termos de penalidade são positivos.
+
+2. Conectividade Variável: A matriz densa torna-se um grafo esparso dependendo dos obstáculos ($$\theta>\theta_{max}$$).
+
+3. Determinismo: O mesmo input $$H$$ sempre gera o mesmo grafo $$G$$.
+
+---
+
+## 8. Considerações de Implementação
+
+Ao construir a matriz de adjacência ou lista de adjacência:
+
+- Normalização: É recomendável normalizar as altitudes para a escala do grid se H vier de dados reais (ex: GeoTIFF), evitando que $$\Delta h$$ domine completamente $$d_{xy}$$.
+
+- NaN Handling: Células com valor $$\text{NaN}$$ no input representam buracos ou áreas desconhecidas e são isoladas (grau 0).
+
+---
+Esta modelagem física serve como a "verdade" (ground truth) para os custos de movimentação. No próximo módulo (Pathfinding Algorithms), utilizaremos este grafo para comparar a eficiência de exploração do Dijkstra versus a busca direcionada do A*, onde a escolha da heurística $$h(n)$$ precisará ser consistente com a função de custo $$w(u,v)$$ aqui definida.
+
+---
+
+## 9. Preparação para os Experimentos
 
 Os arquivos em `data/` incluem:
 
@@ -231,14 +175,7 @@ e no notebook:
 
 ---
 
-## 12. Continuidade com A\*
+## 10. Continuidade com A\*
 
-Esta modelagem será reutilizada no próximo módulo (A\*):
-
-- mesma matriz de alturas;
-- mesma função de custo;
-- adição de heurísticas admissíveis;
-- análise comparativa entre Dijkstra e A\*.
-
-A qualidade desta fase impacta diretamente o módulo seguinte.
+Esta modelagem será reutilizada no próximo módulo (A\*), portanto, a qualidade desta fase impacta diretamente o módulo seguinte.
 
