@@ -6,52 +6,158 @@ A modelagem ultrapassa a simples conectividade de grade, integrando restrições
 
 ---
 
-## 1. Representação do Terreno
+## 1. Representação do Terreno (Reconstrução via Odometria)
 
-O terreno é discretizado como um Grid de Elevação (Digital Elevation Model - DEM), representado formalmente pela matriz $$\(H\)$$:
+No contexto de navegação robótica baseada em inerciais, não partimos de um mapa topográfico pré-existente (como imagens de satélite). O terreno é reconstruído progressivamente a partir da odometria estimada pelo modelo TinyML. Portanto, a representação do terreno não é estática, mas derivada da trajetória histórica do agente.
+
+### 1.1. Representação Formal: Da Trajetória ao Grid
+
+Seja $$T$$ a sequência de poses estimadas pelo modelo de odometria no tempo $$t$$:
 
 $$
-H \in \mathbb{R}^{m \times n}
+T={(x_t,y_t,z_t)∣t=0,…,T}
 $$
 
-Onde $$\(H_{i,j}\)$$ representa a cota (altitude) absoluta da célula nas coordenadas discretas $$\(i, j\)$$. Ou seja, na linha $$\(i\)$$ e coluna $$\(j\)$$. 
+O terreno é modelado como uma matriz de ocupação e elevação $$H \in (\mathbb{R} \cup \{\emptyset\})^{m \times n}$$, onde cada célula representa uma região do espaço físico discretizado. Diferente de imagens comuns, esta matriz deve ser capaz de representar áreas que ainda não foram exploradas (ou seja, áreas desconhecidas).
 
-Propriedades do Espaço:
+$$
+H = \begin{bmatrix}
+h_{0,0} & \dots & h_{0,n-1} \\
+\vdots & \ddots & \vdots \\
+h_{m-1,0} & \dots & h_{m-1,n-1}
+\end{bmatrix}
+$$
 
-- Resolução $$\(\delta\)$$: A distância física entre os centros de duas células adjacentes (ex: 1 metro/pixel).
-- Consistência: Assume-se que a resolução é uniforme nos eixos X e Y.
+Inicialmente, todo o conhecimento do mundo é nulo (terra incognita):
+
+$$
+\forall (i,j), H_{i,j} = \emptyset
+$$
+
+A matriz é preenchida pela projeção da trajetória $$T$$ no plano 2D. Para uma pose $$(xt​,yt​,zt​)$$, a célula correspondente (it​,jt​) é atualizada:
+
+$$
+H_{it,jt} \leftarrow f(H_{it,jt}, z_t)
+$$
+
+Onde $$f$$ é uma função de fusão de dados(média móvel ou último valor) que lida com visitas repetidas à mesma célula (loop closure).
+
+### 1.2. Resolução Espacial e Escala $$\(\delta\)$$
+
+A matriz é *adimensional* em seus índices. Para conferir significado físico, definimos a resolução espacial $$\(\delta\)$$ (metros/pixel). A resolução define o nível de detalhe e o tamanho dos obstáculos detectáveis:
+
+- $$\(\delta\)$$ muito grande: Perda de fidelidade (obstáculos pequenos desaparecem, aliasing topográfico).
+
+- $$\(\delta\)$$ muito pequeno: Explosão combinatória no número de nós do grafo ($$N=m\times n$$), elevando o custo computacional do Dijkstra/A*.
+
+### 1.3. Mapeamento Índice ↔ Espaço Físico
+
+É importante distinguir entre a posição no array (memória) e a posição no mundo (física). Para converter as coordenadas do mundo real $$(x,y)$$ para os índices da matriz $$(i,j)$$, utilizamos uma transformação linear que considera a resolução e a origem do sistema:
+
+$$
+\begin{cases}
+j=⌊\frac{\delta_x-x_{min}}{\delta}⌋\\
+i=⌊\frac{\delta_y-y_{max}-y}{\delta}⌋
+(se\ a\ origem\ da\ imagem\ for\ top-left)\\
+\end{cases}
+$$
+
+> Nota: O uso de $$x_{min}$$ e $$y_{max}$$ é necessário para garantir que coordenadas negativas da odometria (ex.: o robô andou para trás do ponto de partida) sejam mapeadas corretamente para índices positivos de array.
+
+### 1.4. Tipologia dos Dados de Entrada
+
+Os experimentos neste projeto utilizam três categorias de dados para validar a robustez do algoritmo::
+
+**a. Dados Sintéticos (Procedurais):**
+
+- Gerados via Ruído de Perlin ou Simplex Noise.
+
+- Característica: Gradientes suaves, contínuos e diferenciáveis. Ótimos para testar a estabilidade do algoritmo em encostas progressivas.
+
+**b. Dados Determinísticos (Hard-coded):**
+
+- Matrizes desenhadas à mão (ex: rampas perfeitas, escadas, "walls").
+
+- Característica: Descontinuidades abruptas e geometria euclidiana perfeita. Usados para testes unitários e validação de corner cases.
+
+**c. Dados Reais (Odometria Inercial / Dataset MAGF-ID):**
+
+Neste projeto, os dados reais derivam de sistemas de navegação baseados em IMU (Inertial Measurement Unit), utilizando o dataset MAGF-ID. Diferente de uma varredura direta (LiDAR), a topografia aqui é inferida através da reconstrução de trajetória e atitude do agente:
+
+- Fonte: Acelerômetros, giroscópios e magnetômetros.
+- Processo: A matriz $$H$$ é gerada pela projeção da pose estimada $$\left(x_t,y_t,z_t\right)$$ no grid 2D.
+- Características Críticas:
+    - Deriva (Drift): Ao contrário do erro local do LiDAR, o erro do IMU é cumulativo. Pequenos desvios na estimativa de inclinação ($$\theta$$) podem gerar grandes discrepâncias de altura ($$\Delta z$$) ao longo de trajetos longos.
+    - Suavidade vs. Ruído Mecânico: O IMU capta vibrações do chassi que não correspondem ao relevo. O mapa resultante exige filtragem para distinguir o que é "rampa" do que é "trepidação".
+    - Esparsidade: Dados de odometria geram "trilhas". Para obter a matriz $$H^{m\times n}$$ completa, é necessário aplicar técnicas de interpolação espacial, como Kriging ou Inverse Distance Weighting, nas áreas não visitadas, ou limitar o grafo apenas às regiões navegadas.
+
+Importante:
+Ao usar dados de IMU para gerar o terreno H, precisamos ter cuidado redobrado com o eixo $$Z$$.
+
+- O problema da "Gravidade Fantasma": Sensores IMU de baixo custo muitas vezes confundem aceleração lateral (curva) com inclinação (gravidade), o que pode criar "morros virtuais" no mapa onde o terreno é, na verdade, plano.
+
+- Consistência Global: Se o dataset MAGF-ID consistir em vários loops sobre a mesma área, a altura $$z$$ no início e no fim do loop pode não bater devido ao drift (o robô "acha" que subiu ou desceu, mas voltou ao mesmo lugar).
+
+- (Pré-processamento): Talvez seja necessário uma etapa explícita de "nivelamento" ou correção de loop-closure se o mapa parecer inclinado artificialmente.
 
 ---
 
-## 2. Topologia e Vizinhança
+## 2. Topologia e Vizinhança (Grafo de Grade)
 
-Para converter a matriz em grafo $$G=(V,E)$$, cada célula $$\((i,j)\)$$ é mapeada para um vértice $$\(v_{i,j}\)$$. A conectividade é definida pela topologia de Moore (8-vizinhos), essencial para permitir trajetórias mais orgânicas e evitar o efeito "Manhattan" (zigue-zague excessivo).
+Uma vez definida a matriz $$H$$, o passo seguinte é convertê-la em uma estrutura topológica navegável: um grafo $$G=(V,E)$$. Esta conversão determina os "graus de liberdade" cinemáticos do agente dentro da simulação discreta.
+
+### 2.1. Definição de Vértices (V)
+
+Nem toda célula da matriz torna-se um nó do grafo. Em mapas gerados por odometria (esparsos), distinguimos células válidas de células vazias. O conjunto de vértices $$V$$ é definido apenas pelas células contendo dados de elevação válidos:
 
 $$
-N8(i,j)={(k,l):max(|k-i|,|l-j|)=1}
+V={v_{i,j}\mid H_{i,j}\neq NaN}
 $$
 
-Isso resulta em um grafo onde o grau máximo de qualquer vértice é $$8\(deg(v)\leq 8\)$$. 
+Isso implica que o grafo resultante não é necessariamente uma grade regular perfeita; ele pode conter "ilhas", "túneis" ou componentes desconexos, dependendo da qualidade da trajetória de entrada.
+
+### 2.2. Definição de Arestas ($E$) e Conectividade
+
+As arestas definem as transições permitidas. Existem duas topologias padrão para grids quadrados:
+
+**a. 4-Vizinhos (Von Neumann):**
+
+Conecta apenas células ortogonais (Cima, Baixo, Esquerda, Direita).
+- Métrica induzida: Distância Manhattan ($L_1$).
+- Problema: O robô não pode fazer curvas suaves; para ir à diagonal, precisa fazer um "zigue-zague" (staircasing), superestimando a distância real em fator de $\sqrt{2} \approx 1.41$ no pior caso.
+
+**b. 8-Vizinhos (Moore) - Adotado neste Projeto**
+
+Conecta células ortogonais e diagonais.
+
+$$
+N_8(i,j) = \{ (k,l) \in V \mid \max(|k-i|, |l-j|) = 1 \}
+$$
+
+- Métrica induzida: Distância Chebyshev ($L_\infty$), aproximando-se da Euclidiana ($L_2$) quando os custos são ponderados.
+- Vantagem Robótica: Permite aproximações de movimentos de 45°, essenciais para suavizar trajetórias de veículos reais.
+
+### 2.3. Condição de Existência da Aresta
+
+Uma aresta $e = (u, v)$ só existe no conjunto $E$ se ambas as condições forem atendidas: 
+
+1. Adjacência Geométrica: $v$ está no conjunto $N_8(u)$. 
+2. Validade dos Dados: Tanto $H_u$ quanto $H_v$ são números reais válidos (não são NaN).
+
+> Nota sobre "Cutting Corners": Em uma topologia de 8-vizinhos, mover-se na diagonal entre dois obstáculos (ou paredes) pode ser geometricamente possível no grafo, mas fisicamente impossível para um robô com largura > 0. Para este estudo algorítmico, assumimos o robô como um ponto material. Em um sistema de produção, seria necessário inflar os obstáculos (Costmap Inflation) antes de gerar o grafo.
+
+### 2.4. Resumo da Estrutura
+
+O grafo resultante $G$ possui as seguintes propriedades:
+- Não-direcionado (inicialmente): Se posso ir de A para B, a aresta existe de B para A.
+- Grau Máximo: 8 (em áreas abertas).
+- Grau Mínimo: 1 (em pontas de corredores sem saída/dead-ends da odometria).
 
 ---
 
 ## 3. Geometria do Movimento (Distância 3D)
 
-Diferente de abordagens simplistas que consideram apenas a distância planar, este modelo calcula a Distância Euclidiana 3D real percorrida pelo agente.
 
-Ao mover-se de $$\((i,j)$$ para $$\((k,l)$$, a distância planar base $$\(d_{xy}\)$$ é:
-
-$$
-d_{xy}(u,v) = \delta \cdot \sqrt{(k-i)^2 + (l-j)^2}
-$$
-
-A distância física real $$\(d_{3D}\)$$, considerando o desnível $$\(\Delta h = H_v - H_u\)$$, é dada por pitágoras em 3 dimensões:
-
-$$
-d_{3D}(u,v) = \sqrt{d_{xy}^2 + \Delta h^2}
-$$
-
-Nota: Utilizar $$\(d_{3D}\)$$ penaliza naturalmente caminhos íngremes simplesmente porque eles são mais longos do que a sua projeção no plano.
 
 ---
 
