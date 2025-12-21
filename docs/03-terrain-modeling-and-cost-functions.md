@@ -239,7 +239,8 @@ H = \begin{bmatrix}
  d_{3D} = \sqrt{1.0^2 + 0.5^2} = \sqrt{1.25} \approx \mathbf{1.11\,m}
  $$
  
- Conclusão do Algoritmo: Embora visualmente no mapa 2D ("top-down") as células pareçam equidistantes, o cálculo da Geometria 3D revela que o Cenário 1 custa 100% mais energia/distância para ser transposto do que o Cenário 2.O algoritmo de Dijkstra, alimentado por esses pesos, naturalmente evitará o escombro alto, direcionando o robô para a rampa suave, mimetizando o comportamento de um operador humano experiente.
+ > Conclusão do Algoritmo:
+ > Embora visualmente no mapa 2D ("top-down") as células pareçam equidistantes, o cálculo da Geometria 3D revela que o Cenário 1 custa 100% mais energia/distância para ser transposto do que o Cenário 2.O algoritmo de Dijkstra, alimentado por esses pesos, naturalmente evitará o escombro alto, direcionando o robô para a rampa suave, mimetizando o comportamento de um operador humano experiente.
 
 ---
 
@@ -251,15 +252,15 @@ Antes de atribuir um custo monetário ou energético a uma aresta, é necessári
 
 ### 4.1. Cálculo da Inclinação Local (θ)
 
-Para cada aresta potencial conectando $$u$$ a $$v$$, calculamos o ângulo de inclinação $$\(\Theta\)$$ em relação ao plano horizontal.
+Para cada aresta potencial conectando $$u$$ a $$v$$, calculamos o ângulo de inclinação $$\(\theta\)$$ em relação ao plano horizontal.
 
 Dada a diferença de altura $$\(|\Delta h|\)$$ e a distância planar $$d_{xy}$$:
 
 $$
-\Theta = arctan(d_{xy} \cdot |\Delta h|)
+\theta = arctan(d_{xy} \cdot |\Delta h|)
 $$
 
-Onde $$\(\Theta \in \left[0, \frac{\pi}{2}\right)\)$$.
+Onde $$\(\theta \in \left[0, \frac{\pi}{2}\right)\)$$.
 
 $$
 \begin{tikzpicture}[scale=1.1]
@@ -285,21 +286,26 @@ $$
 
 ### 4.2. Critério de Transversalidade (Hard Constraint)
 
-Definimos um ângulo crítico θmax​ (ou θcrit​), que representa o limite operacional do agente. A função de validação da aresta é binária:
+Definimos um ângulo crítico $$\theta_{max}$$ (ou $$θ_{crit}$$), que representa o limite operacional do agente. A função de transversalidade da aresta é binária:
 
 $$
-Transponı́vel(u,v) \equal \begin{cases} True\quad se \quad \Theta\leq\Theta_{max}\quad se \quad \Theta>\Theta_{max} \end{cases}
+\operatorname{Transponível}(u, v) =
+\begin{cases}
+\text{True},  & \text{se } \theta \le \theta_{\max} \\
+\text{False}, & \text{se } \theta > \theta_{\max}
+\end{cases}
+
 $$
 
-Se $$Transponı́vel(u,v)$$ for *False*, o peso da aresta torna-se infinito $$(w=∞)$$, ou, mais eficientemente, a aresta é removida da lista de adjacência.
+Se $$\operatorname{Transponível}(u, v)$$ for *False*, o peso da aresta torna-se infinito $$(w = \infty)$$, ou, mais eficientemente, a aresta é removida da lista de adjacência.
 
-> Nota: Em sistemas de odometria inercial, picos de ruído no eixo Z podem criar "agulhas" falsas no terreno que excedem $$\Theta_{max}$$. É comum aplicar uma tolerância ($$\epsilon$$) ou um filtro de suavização antes deste passo para evitar que o robô fique preso em "paredes de ruído".
+> Nota: Em sistemas de odometria inercial, picos de ruído no eixo Z podem criar "agulhas" falsas no terreno que excedem $$\theta_{max}$$. É comum aplicar uma tolerância ($$\epsilon$$) ou um filtro de suavização antes deste passo para evitar que o robô fique preso em "paredes de ruído".
 
 **Caso: Decisão de Segurança**
 
 Contexto: Continuando a operação de resgate, o robô está diante das mesmas opções, mas agora o algoritmo possui as especificações técnicas do chassi:
 
-- Limite de Tração ($$\theta_{max}$$): 45∘ (0.78 rad). Acima disso, o robô capota para trás.
+- Limite de Tração ($$\theta_{max}$$): $$45∘ (\frac{\pi}{4} rad)$. Acima disso, o robô capota para trás.
 - Resolução ($$\delta$$): 1.0 metro (para simplificar o cálculo).
 
 Revisão do Cenário 1: O "Atalho" Vertical (Escombros)
@@ -308,10 +314,10 @@ Revisão do Cenário 1: O "Atalho" Vertical (Escombros)
 - Cálculo do Ângulo:
 
 $$
-\theta=arctan(1.02.0)≈63.4∘
+\theta=arctan(\frac{1.0}{2.0})≈63.4∘
 $$
 
-Verificação: $$63.4∘>45∘$$.
+Verificação: $$63.4∘ \geq 45∘$$.
 
 Decisão: VIOLAÇÃO DE SEGURANÇA. A aresta é removida. Para o grafo, o caminho direto através do escombro não existe, mesmo sendo o caminho mais curto em metros.
 
@@ -322,10 +328,10 @@ Dados: $$\Delta h=0.5m$$, $$d_{xy}=1.0m$$.
 Cálculo do Ângulo:
 
 $$
-\theta=arctan(1.00.5)≈26.5∘
+\theta=arctan(\frac{1.0}{0.5})≈26.5∘
 $$
 
-Verificação: $$26.5∘≤45∘$$.
+Verificação: $$26.5∘ \leq 45∘$$.
 
 Decisão: APROVADO. A aresta permanece no grafo e seu custo será calculado (na próxima seção).
 
