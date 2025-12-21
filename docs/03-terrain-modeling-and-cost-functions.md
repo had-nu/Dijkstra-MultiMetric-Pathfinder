@@ -397,6 +397,7 @@ Opção A: A Rampa Direta (Curta mas Íngreme)
 - Limite: $$\theta_{max}=45^\circ$$.
 - Razão: $$\frac{\theta_{max}}{\theta}=\frac{45}{26.5}\approx0.59$$.
 - Custo (Linear): 
+
 $$
 w_A=1.11\cdot(1+10\cdot0.59)=1.11\cdot(6.9)\approx7.66
 $$
@@ -408,6 +409,7 @@ Existe um caminho alternativo pelo chão plano que dá a volta no obstáculo.
 - Dados: Distância $$d_{3D}=3.50m$$, Inclinação $$\theta\approx0^\circ$$.
 - Penalidade: $$P(0)=0.$$
 - Custo: 
+
 $$
 w_B=3.50\cdot(1+0)=3.50
 $$
@@ -421,9 +423,8 @@ O Dijkstra selecionará a Opção B. O robô fará o caminho mais longo, economi
 
 Para que o Dijkstra funcione, é imperativo que $$w(u,v)≥0$$. A nossa formulação garante isso estruturalmente:
 
-    $$d_{3D}\geq\delta>0$$ (sempre positivo).
-
-    $$\alpha\geq0$$ e $$P(\theta)\geq0$$ (penalidades aditivas).
+- $$d_{3D}\geq\delta>0$$ (sempre positivo).
+- $$\alpha\geq0$$ e $$P(\theta)\geq0$$ (penalidades aditivas).
 
 Logo, não existem arestas de peso negativo, impedindo ciclos infinitos de redução de custo.
 
