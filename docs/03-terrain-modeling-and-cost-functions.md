@@ -430,61 +430,214 @@ Logo, não existem arestas de peso negativo, impedindo ciclos infinitos de redu�
 
 ---
 
-## 6. Assimetria de Custo (Direcionalidade)
+## 6. Assimetria de Custo (Direcionalidade e Gravidade)
 
-Em cenários de alta fidelidade, o grafo é direcionado ($$w(u,v)\neq w(v,u)$$).
+Em topografias acidentadas, o custo energético é fundamentalmente anisotrópico devido à ação da gravidade. Subir uma encosta exige trabalho contra o vetor gravitacional (aumento de energia potencial), enquanto descer pode ser auxiliado por ele, embora exija controle (frenagem).
 
-- Subida ($$\Delta h>0$$): Custo alto (trabalho contra a gravidade).
+Isso implica que o grafo gerado deve ser Direcionado: a aresta $$e_{uv}$$ (ida) possui um peso diferente da aresta $$e_{vu}$$ (volta).
 
-- Descida ($$\Delta h<0$$):
+### 6.1. Definição do Sentido ($$sgn(\Delta h)$$)
 
-    - Caso Simples: Custo reduzido (ajuda da gravidade).
+Para determinar o regime de movimento entre $$u$$ e $$v$$, observamos o sinal do desnível:
 
-    - Caso Robótico: Custo moderado (necessidade de frenagem ativa para não perder controle).
+$$
+\Delta h_{u\to v}=H_v-H_u
+$$
 
-Para este projeto, adotamos uma Penalização Simétrica Conservadora (assumindo que descer uma ladeira íngreme é tão perigoso/custoso quanto subi-la), garantindo robustez e simplificando a heurística para o A*.
+- Subida ($$\Delta h>0$$): O motor precisa superar a resistência ao rolamento + componente da gravidade.
+- Descida ($$\Delta h<0$$): A gravidade auxilia o movimento, mas pode exigir consumo energético para frenagem ativa (segurança).
+- Plano ($$\Delta h\approx0$$): Apenas resistência ao rolamento.
+
+### 6.2. Fatores de Penalidade Distintos
+
+Refinamos a função de custo da Seção 5 dividindo o coeficiente $$\alpha$$ em dois componentes distintos:
+
+$$
+w(u,v)=d_{3D}\cdot(1+K_{dir}\cdot P(\theta))
+$$
+
+Onde $$K_{dir}$$ é selecionado condicionalmente:
+
+$$
+K_{dir}=\begin{cases}
+\alpha_{subida}&\text{se }\Delta h>0\text{(Ex: 10.0)}\\
+\alpha_{descida}&\text{se }\Delta h<0\text{(Ex: 2.0)}
+\end{cases}
+$$
+
+Interpretação Física:
+
+- Geralmente, $$\alpha_{subida}≫\alpha_{descida}$$.
+- Mesmo na descida, mantemos um $$\alpha_{descida}>0$$ (pequeno) ao invés de zero ou negativo. Isso simula a necessidade de cautela e evita que o robô se jogue "morro abaixo" descontroladamente.
+
+### 6.3. Restrição Algorítmica (Pesos Negativos)
+
+É tentador modelar a descida com custos negativos (recuperação de energia/freio regenerativo). No entanto, o algoritmo de Dijkstra não suporta arestas com pesos negativos, pois isso invalida a propriedade de "ganância" (greedy) da exploração.
+
+Para garantir a estabilidade matemática:
+
+$$
+\forall(u,v),w(u,v)\geq d_{3D}>0
+$$
+
+Mesmo que a descida seja "fácil", ela nunca deve custar menos que a própria distância física percorrida.
+
+**Caso: Ida e Volta**
+
+Contexto: Vamos supor que, ao invés de dar a volta, como na seção anterior, o robô subiu a rampa (opção A) e agora precisa voltar para a base. Vamos comparar o custo de subir vs. descer a mesma rampa de 26.5∘.
+
+Parâmetros:
+
+- $$d_{3D}=1.11m$$
+- $$P(θ)≈0.59$$ (fator de inclinação calculado na seção anterior).
+- $$α_{subida}=10.0$$ (Muito custoso).
+- $$α_{descida}=1.0$$ (Pouco custoso, apenas atrito).
+
+Custo da Ida (Subida A→B):
+
+$$
+w_{A\to B}=1.11\cdot(1+10.0\cdot0.59) \approx 7.66
+$$
+
+Custo da Volta (Descida B→A):
+
+$$
+w_{B\to A}=1.11\cdot(1+1.0\cdot0.59) \approx 1.76
+$$
+
+> O caminho de volta é 4.3x "mais barato" para o algoritmo do que o caminho de ida. Isso cria um comportamento interessante: para ir até o alvo, o robô pode dar uma volta enorme pelo plano (para evitar a subida de custo 7.66). Mas para voltar, ele pode escolher descer a rampa direta (custo 1.76), criando rotas assimétricas típicas de trilhas reais.
 
 ---
 
 ## 7. Propriedades Formais do Grafo Resultante
 
-O processo de modelagem resulta em um grafo $$G=(V,E,w)$$ com as seguintes garantias para o algoritmo de Dijkstra:
+Após aplicar as regras de discretização, geometria e custo, o terreno original é convertido em um grafo dirigido ponderado $$G=(V,E,w)$$. Isso significa que o objeto matemático construído ($$G$$) cumpre os pré-requisitos teóricos para que o algoritmo de Dijkstra funcione corretamente e termina a modelagem antes de entrarmos na implementação.
 
-1. Não-Negatividade: $$w(e)\geq 0$$ para todo $$e\in E$$. Isso é garantido pois $$d_{3D}>0$$ e os termos de penalidade são positivos.
+A análise das propriedades deste grafo é fundamental para prever o comportamento computacional dos algoritmos de busca.
 
-2. Conectividade Variável: A matriz densa torna-se um grafo esparso dependendo dos obstáculos ($$\theta>\theta_{max}$$).
+### 7.1. Definição Formal
 
-3. Determinismo: O mesmo input $$H$$ sempre gera o mesmo grafo $$G$$.
+O grafo é definido pela tupla $$G=(V,E,w)$$ onde:
+
+- $$V$$ (Vértices): O conjunto de todas as células visitadas/conhecidas:
+
+$$
+V={(i,j)\in Z^2\mid H_{i,j}\neq NaN}
+$$
+
+- $$E$$ (Arestas): O conjunto de transições válidas sob a restrição de inclinação:
+
+$$
+E={(u,v)\in V\times V\mid v\in N_8(u)\land\theta(u,v)\leq\theta_{max}}
+$$
+
+- $$w$$ (Pesos): A função de custo assimétrica definida na Seção 6.
+
+$$
+w:E\to R^+
+$$
+
+### 7.2. Propriedades Imprescindíveis para o Algoritmo
+
+**A. Não-Negatividade (Condição de Dijkstra)**
+
+Para que o algoritmo de Dijkstra garanta a otimalidade sem reavaliar nós fechados (propriedade greedy), não podem existir arestas negativas. Nossa modelagem garante:
+
+$$
+\forall e\in E, w(e)\geq d_{3D}\geq\delta>0
+$$
+
+Isso assegura que o custo do caminho é estritamente monotônico crescente, prevenindo loops infinitos e garantindo a convergência.
+
+**B. Direcionalidade (Digrafo)**
+
+Devido à física da gravidade (Seção 6), o grafo é Dirigido (Directed Graph). A matriz de adjacência resultante não é simétrica:
+
+$$
+w(u,v)\neq w(v,u)\quad\text{(exceto em terreno perfeitamente plano)}
+$$
+
+Isso implica que, ao implementar a busca, devemos iterar sobre os sucessores de u, e o caminho de volta requer um recálculo total, não sendo apenas o inverso do caminho de ida.
+
+**C. Esparsidade e Conectividade (O Efeito "Arquipélago")
+
+Diferente de grids sintéticos que são geralmente conexos, grafos derivados de odometria inercial frequentemente apresentam Componentes Desconexos. Se o robô mapeou a "Sala A", foi desligado e transportado para a "Sala B", a matriz $$H$$ conterá duas ilhas de dados válidos separadas por um mar de $$NaN$$.
+
+- Consequência: Se o ponto de partida $$S$$ estiver na "Sala A" e o alvo $$T$$ na "Sala B", o algoritmo de Dijkstra explorará toda a componente conexa de $$A$$ e retornará "Caminho Inexistente". Isso é um comportamento esperado e correto, não um bug.
+
+**D. Fator de Ramificação (Branching Factor)
+
+O grau de saída máximo (\Delta_out) de qualquer vértice é limitado pela topologia de Moore:
+
+$$
+deg_out(v)\leq8
+$$
+
+Na prática, devido às bordas da trajetória e obstáculos ($$\theta>\theta_{max}$$), o grau médio é frequentemente $$3\leq\bar{deg}\leq6$$. Isso classifica o grafo como esparso, favorecendo implementações baseadas em Listas de Adjacência em vez de Matrizes de Adjacência para economia de memória em TinyML.
 
 ---
 
 ## 8. Considerações de Implementação
 
-Ao construir a matriz de adjacência ou lista de adjacência:
+A transição das equações matemáticas para código performático exige escolhas arquiteturais específicas, especialmente considerando a natureza esparsa dos dados de odometria.
 
-- Normalização: É recomendável normalizar as altitudes para a escala do grid se H vier de dados reais (ex: GeoTIFF), evitando que $$\Delta h$$ domine completamente $$d_{xy}$$.
+### 8.1. Estrutura de Dados: Matriz vs. Lista de Adjacência
 
-- NaN Handling: Células com valor $$\text{NaN}$$ no input representam buracos ou áreas desconhecidas e são isoladas (grau 0).
+Embora o terreno seja representado visualmente como uma matriz $$H$$ (Grid), o grafo $$G$$ não deve ser armazenado como uma Matriz de Adjacência $$(N\times N)$$, simplesmente por ser inviável.Para um mapa de 100×100 células (104 nós), a matriz de adjacência teria 108 entradas. Como cada nó tem no máximo 8 vizinhos, 99.9% dessa memória seria desperdiçada com zeros.
 
----
-Esta modelagem física serve como a "verdade" (ground truth) para os custos de movimentação. No próximo módulo (Pathfinding Algorithms), utilizaremos este grafo para comparar a eficiência de exploração do Dijkstra versus a busca direcionada do A*, onde a escolha da heurística $$h(n)$$ precisará ser consistente com a função de custo $$w(u,v)$$ aqui definida.
+**Lista de Adjacência (Hash Map): Abordagem recomendada**
+- Python: `Dict[Node, Dict[Neighbor, Weight]]`.
+- C++ (TinyML): `std::vector` de structs ou mapas estáticos.
+- Armazena apenas as transições válidas ($$\theta\leq\theta_{max}$$), economizando memória e acelerando a iteração dos vizinhos no algoritmo de Dijkstra.
+
+### 8.2. Otimização via Vetorização e Máscaras
+
+A construção do grafo é, computacionalmente, a etapa mais custosa antes da busca em si. Uma abordagem ingênua — iterar sobre cada célula $$(i,j)$$ com laços `for` aninhados para verificar seus 8 vizinhos — introduz um *overhead* proibitivo em Python, devido à natureza interpretada da linguagem. Para viabilizar experimentos rápidos com múltiplos mapas e parâmetros, adotamos uma estratégia de Vetorização (Array Operations) utilizando NumPy.
+
+**A Técnica de Deslocamento de Matrizes (Array Shifting):**
+Ao invés de calcular a diferença de altura $$\Delta h$$ vizinho por vizinho, processamos o grid inteiro de uma vez. Para calcular o custo de movimento para a "Direita", por exemplo, subtraímos a matriz original de uma versão dela mesma deslocada (shifted) em uma coluna. Isso nos permite calcular os custos de milhões de arestas simultaneamente, aproveitando as otimizações de baixo nível (C/Fortran) do NumPy.
+
+**Aplicação de Restrições via Máscaras Booleanas:**
+A validação de transversalidade (Seção 4) não utiliza condicionais `if/else` lentos. Em vez disso, calculamos a matriz de inclinações $$\theta$$ para todo o terreno e geramos uma *máscara booleana* onde $$\theta>\theta_{max}$$. Essa máscara é aplicada multiplicativamente ou via indexação direta para invalidar arestas em lote.
+
+> Nota: Esta otimização é específica para a fase de prototipagem em Python. Na implementação final embarcada (TinyML/C++), a memória é escassa e não permite duplicar matrizes para vetorização; lá, a iteração baseada em ponteiros será a escolha mais eficiente.
+
+### 8.3. Precisão Numérica e Tolerâncias
+
+Ao lidar com *floats* derivados de sensores inerciais:
+
+- Nunca verificar `if custo == 0`. Usar `if custo < epsilon`.
+- O custo total do caminho é uma soma de *floats*. Em trajetos muito longos (> 1km), a precisão simples (float32) é suficiente para robótica, mas deve-se estar atento a erros de arredondamento se os custos das arestas tiverem ordens de magnitude muito díspares (ex: andar no plano vs. penalidade exponencial extrema).
 
 ---
 
 ## 9. Preparação para os Experimentos
 
-Os arquivos em `data/` incluem:
+A validação desta modelagem será conduzida através de experimentos comparativos, utilizando os dados armazenados na pasta `data/`.
 
-- terrenos sintéticos simples para validação;
-- terrenos mais variados para análise visual.
+### 9.1. Datasets de Entrada
 
-Esses arquivos serão usados no documento:
+O algoritmo consumirá dois tipos de artefatos gerados pelo notebook `01_exploratory_terrain_and_paths.ipynb`:
 
-- `05-experiments-and-results.md`
+**A. Terrenos Sintéticos (data/synthetic/)**
 
-e no notebook:
+- `ramp_perfect.npy` : Uma rampa lisa com inclinação constante. Usado para validar se o custo calculado bate com a fórmula teórica.
+- `obstacle_course.npy` : Um corredor plano bloqueado por um muro alto. Usado para testar o "Hard Constraint" ($$\theta_{max}$$).
 
-- `01_exploratory_terrain_and_paths.ipynb`.
+**B. Dados Reais MAGF-ID (data/processed/)**
+
+- `magf_sample_01.npy` : Matriz esparsa reconstruída a partir de uma caminhada de 50 metros em ambiente de escritório (chão plano + escada).
+
+Desafio: Contém ruído de vibração e células $$NaN$$. O algoritmo deve ser capaz de encontrar o caminho contornando os "buracos" da odometria.
+
+### 9.2. Integração com o Próximo Módulo
+
+Este documento define a classe `TerrainGraph` que servirá de input direto para o próximo módulo:
+
+- Documento: `04-dijkstra-implementation.md`
+- Objetivo: O algoritmo de Dijkstra não precisará saber o que é "altura" ou "inclinação". Ele receberá apenas o grafo abstrato $$G$$ com pesos $$w$$ definidos aqui.
+
+Essa separação de responsabilidades (Decoupling) é importante, pois se decidirmos mudar a física do robô (ex: mudar de rodas para lagartas), alteramos apenas a função de custo neste módulo, sem tocar em uma linha de código do algoritmo de busca.
 
 ---
 
