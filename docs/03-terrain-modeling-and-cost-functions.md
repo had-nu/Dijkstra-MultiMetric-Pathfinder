@@ -559,18 +559,18 @@ $$
 
 Isso implica que, ao implementar a busca, devemos iterar sobre os sucessores de u, e o caminho de volta requer um recálculo total, não sendo apenas o inverso do caminho de ida.
 
-**C. Esparsidade e Conectividade (O Efeito "Arquipélago")
+**C. Esparsidade e Conectividade (O Efeito "Arquipélago")**
 
 Diferente de grids sintéticos que são geralmente conexos, grafos derivados de odometria inercial frequentemente apresentam Componentes Desconexos. Se o robô mapeou a "Sala A", foi desligado e transportado para a "Sala B", a matriz $$H$$ conterá duas ilhas de dados válidos separadas por um mar de $$NaN$$.
 
 - Consequência: Se o ponto de partida $$S$$ estiver na "Sala A" e o alvo $$T$$ na "Sala B", o algoritmo de Dijkstra explorará toda a componente conexa de $$A$$ e retornará "Caminho Inexistente". Isso é um comportamento esperado e correto, não um bug.
 
-**D. Fator de Ramificação (Branching Factor)
+**D. Fator de Ramificação (Branching Factor)**
 
-O grau de saída máximo (\Delta_out) de qualquer vértice é limitado pela topologia de Moore:
+O grau de saída máximo (\Delta_{out}) de qualquer vértice é limitado pela topologia de Moore:
 
 $$
-deg_out(v)\leq8
+deg_{out}(v)\leq8
 $$
 
 Na prática, devido às bordas da trajetória e obstáculos ($$\theta>\theta_{max}$$), o grau médio é frequentemente $$3\leq\bar{deg}\leq6$$. Isso classifica o grafo como esparso, favorecendo implementações baseadas em Listas de Adjacência em vez de Matrizes de Adjacência para economia de memória em TinyML.
