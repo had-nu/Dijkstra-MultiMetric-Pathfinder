@@ -289,7 +289,7 @@ $$
 Definimos um ângulo crítico $$\theta_{max}$$ (ou $$θ_{crit}$$), que representa o limite operacional do agente. A função de transversalidade da aresta é binária:
 
 $$
-\operatorname{Transponível}(u, v) =
+\text{Transponível}(u, v) =
 \begin{cases}
 \text{True},  & \text{se } \theta \le \theta_{\max} \\
 \text{False}, & \text{se } \theta > \theta_{\max}
@@ -297,7 +297,7 @@ $$
 
 $$
 
-Se $$\operatorname{Transponível}(u, v)$$ for *False*, o peso da aresta torna-se infinito $$(w = \infty)$$, ou, mais eficientemente, a aresta é removida da lista de adjacência.
+Se $$\text{Transponível}(u, v)$$ for *False*, o peso da aresta torna-se infinito $$(w = \infty)$$, ou, mais eficientemente, a aresta é removida da lista de adjacência.
 
 > Nota: Em sistemas de odometria inercial, picos de ruído no eixo Z podem criar "agulhas" falsas no terreno que excedem $$\theta_{max}$$. É comum aplicar uma tolerância ($$\epsilon$$) ou um filtro de suavização antes deste passo para evitar que o robô fique preso em "paredes de ruído".
 
@@ -314,10 +314,10 @@ Revisão do Cenário 1: O "Atalho" Vertical (Escombros)
 - Cálculo do Ângulo:
 
 $$
-\theta=arctan(\frac{1.0}{2.0})≈63.4∘
+\theta=arctan(\frac{2.0}{1.0})≈63.4∘
 $$
 
-Verificação: $$63.4∘ \geq 45∘$$.
+Verificação: $$63.4∘ > 45∘$$.
 
 Decisão: VIOLAÇÃO DE SEGURANÇA. A aresta é removida. Para o grafo, o caminho direto através do escombro não existe, mesmo sendo o caminho mais curto em metros.
 
@@ -328,7 +328,7 @@ Dados: $$\Delta h=0.5m$$, $$d_{xy}=1.0m$$.
 Cálculo do Ângulo:
 
 $$
-\theta=arctan(\frac{1.0}{0.5})≈26.5∘
+\theta=arctan(\frac{0.5}{1.0})≈26.5∘
 $$
 
 Verificação: $$26.5∘ \leq 45∘$$.
