@@ -34,10 +34,10 @@ $$
 \forall (i,j), H_{i,j} = \emptyset
 $$
 
-A matriz é preenchida pela projeção da trajetória $$T$$ no plano 2D. Para uma pose $$(xt​,yt​,zt​)$$, a célula correspondente (it​,jt​) é atualizada:
+A matriz é preenchida pela projeção da trajetória $$T$$ no plano 2D. Para uma pose $$(x_t,y_t,z_t)$$, a célula correspondente ($$i_t$$,$$j_t$$) é atualizada:
 
 $$
-H_{it,jt} \leftarrow f(H_{it,jt}, z_t)
+H_{i_t,j_t} \leftarrow f(H_{i_t,j_t}, z_t)
 $$
 
 Onde $$f$$ é uma função de fusão de dados(média móvel ou último valor) que lida com visitas repetidas à mesma célula (loop closure).
@@ -155,31 +155,181 @@ O grafo resultante $G$ possui as seguintes propriedades:
 
 ---
 
-## 3. Geometria do Movimento (Distância 3D)
+## 3. Geometria do Movimento (Distância Euclidiana 3D)
 
+Diferente de abordagens clássicas de grid-world que consideram apenas a distância planar (Manhattan ou Euclidiana 2D), este projeto calcula a distância física real percorrida pelo agente no espaço tridimensional. Isso é fundamental para a Odometria Inercial, pois o erro do sensor acumula-se sobre a trajetória percorrida ($$d_{3D}$$), e não sobre sua sombra projetada no chão ($$d_{xy}$$).
 
+### 3.1. Distância Planar Base ($$d_{xy}$$)
+
+Seja uma aresta conectando o nó atual $u=(i,j)$ a um vizinho $v=(k,l)$. A distância horizontal entre os centros das células, considerando a resolução espacial $\delta$, é:
+
+$$
+d_{xy}(u,v) = \delta \cdot \sqrt{(k-i)^2 + (l-j)^2}
+$$
+
+Dada a topologia de 8-vizinhos (Moore), isso simplifica para dois casos discretos:
+- Movimento Ortogonal: $d_{xy} = \delta$
+- Movimento Diagonal: $d_{xy} = \delta \sqrt{2} \approx 1.414 \cdot \delta$
+
+### 3.2. Diferença de Cota ($\Delta h$)
+
+A variação de altura entre os nós é obtida diretamente da matriz de elevação:
+
+$$
+\Delta h = H_{k,l} - H_{i,j}
+$$
+
+### 3.3. Distância Real Percorrida ($d_{3D}$)
+
+Aplicando o Teorema de Pitágoras em 3 dimensões, obtemos o comprimento físico da aresta. Este será o peso base ($w_{base}$) do grafo antes de aplicarmos penalidades de esforço:
+
+$$
+d_{3D}(u,v) = \sqrt{d_{xy}^2 + \Delta h^2}
+$$
+
+### 3.4. Impacto no Pathfinding
+
+A utilização de $$d_{3D}$$ introduz uma penalização geométrica implícita:
+
+- Caminho Mínimo Real: O algoritmo priorizará, *ceteris paribus*, terrenos planos em vez de terrenos acidentados, simplesmente porque a hipotenusa de uma rampa é mais longa que o cateto base.
+
+- Consistência com a Física: Se $$\Delta h$$ for muito grande (um muro vertical), $$d_{3D}$$ aumenta significativamente, mas não o suficiente para impedir o movimento sozinho. Por isso, precisaremos das restrições de inclinação na próxima seção.
+
+**Caso: "Rampa vs. Degrau" e Navegação em Escombros**
+
+Contexto: Uma empresa especializada em robôs de resgate foi contratada pela Defesa Civil para implantar robôs de resgate em escombros. O robô (TinyML Rover) utiliza apenas odometria inercial para mapear o ambiente, pois a fumaça bloqueia câmeras e LiDARs.
+
+O Problema: O robô está na posição *A* e precisa chegar em *B*. O sistema detectou duas rotas possíveis no grid reconstruído. O algoritmo precisa decidir qual aresta explorar primeiro baseando-se no custo físico real.
+
+Dados de Entrada:
+
+- Resolução ($\delta$): $0.5$ metros (cada célula tem $50 \times 50$ cm).
+- Matriz de Elevação Local ($H$):
+
+$$
+H = \begin{bmatrix}
+ 0.0 & 0.0 & \mathbf{2.0} \\
+ 0.0 & 0.0 & 0.5 \\
+ \mathbf{0.0} & 0.0 & 0.0
+ \end{bmatrix}
+ $$
+ 
+ (Onde $H_{2,0}$ é a posição atual do robô $A$ e ele avalia vizinhos).
+ 
+ Cenário 1: O "Atalho" Vertical (Obstáculo)
+ O robô avalia mover-se para a célula $(0,2)$ (canto superior direito), onde há um escombro de $2.0m$ de altura.
+
+ - Deslocamento Planar ($d_{xy}$): Digamos que a distância no grid seja 2 células (1.0m).
+ - Desnível ($\Delta h$): $2.0m - 0.0m = 2.0m$.
+ - Custo Real ($d_{3D}$):
+ 
+ $$
+ d_{3D} = \sqrt{1.0^2 + 2.0^2} = \sqrt{5} \approx \mathbf{2.23\,m}
+ $$
+ 
+ (Nota: O caminho mais que dobrou de tamanho devido à altura).
+ 
+ Cenário 2: A Rampa SuaveO robô avalia mover-se para a célula $(1,2)$ (meio direito), onde a altura é $0.5m$.
+ 
+ - Deslocamento Planar ($d_{xy}$): A mesma distância de grade (1.0m).
+ Desnível ($\Delta h$): $0.5m - 0.0m = 0.5m$.
+ - Custo Real ($d_{3D}$):
+ 
+ $$
+ d_{3D} = \sqrt{1.0^2 + 0.5^2} = \sqrt{1.25} \approx \mathbf{1.11\,m}
+ $$
+ 
+ Conclusão do Algoritmo: Embora visualmente no mapa 2D ("top-down") as células pareçam equidistantes, o cálculo da Geometria 3D revela que o Cenário 1 custa 100% mais energia/distância para ser transposto do que o Cenário 2.O algoritmo de Dijkstra, alimentado por esses pesos, naturalmente evitará o escombro alto, direcionando o robô para a rampa suave, mimetizando o comportamento de um operador humano experiente.
 
 ---
 
 ## 4. Análise de Inclinação e Transversalidade
 
-Antes de calcular o custo, avaliamos a viabilidade física da aresta. Um agente possui limites mecânicos (torque, atrito, centro de massa).
+Agora chegamos ao momento de "vida ou morte" para o algoritmo. Enquanto a Seção 3 calculava o esforço, a Seção 4 decide a possibilidade. Se não implementarmos isso, o Dijkstra pode encontrar um caminho "ótimo" que envolve subir uma parede de 90 graus só porque é o trajeto mais curto.
 
-Definimos a inclinação $$\(\Theta\)$$ (em radianos) da aresta como:
+Antes de atribuir um custo monetário ou energético a uma aresta, é necessário determinar a sua viabilidade física. Robôs possuem limites mecânicos intransponíveis ditados pelo torque dos motores, coeficiente de atrito das rodas e centro de massa. Nesta etapa, o grafo sofre uma "poda" baseada em geometria, transformando arestas geometricamente existentes em conexões logicamente nulas.
 
-$$
-\Theta=arctan(dxy\mid\Delta h\mid)
-$$
+### 4.1. Cálculo da Inclinação Local (θ)
 
-### 4.1. Corte de Transversalidade (Hard Constraint)
+Para cada aresta potencial conectando $$u$$ a $$v$$, calculamos o ângulo de inclinação $$\(\Theta\)$$ em relação ao plano horizontal.
 
-Se a inclinação excede o limite crítico do robô ($$\(\Theta_{max}\)$$), a aresta é considerada intransponível (obstáculo):
+Dada a diferença de altura $$\(|\Delta h|\)$$ e a distância planar $$d_{xy}$$:
 
 $$
-se \(\Theta>\Theta_{max}\)⟹w(u,v)=∞
+\Theta = arctan(d_{xy} \cdot |\Delta h|)
 $$
 
-Isso remove efetivamente a aresta do conjunto $$\(E\)$$, criando barreiras naturais baseadas na topografia.
+Onde $$\(\Theta \in \left[0, \frac{\pi}{2}\right)\)$$.
+
+$$
+\begin{tikzpicture}[scale=1.1]
+
+% Axes
+\draw[->] (-0.5,0) -- (5,0) node[right] {$x$};
+\draw[->] (0,-0.5) -- (0,5) node[above] {$y$};
+
+% Line
+\draw[thick, red] (0.5,0.5) -- (4,4);
+
+% Rise
+\draw[thick] (1,1) -- (1,3) node[midway,left] {Rise};
+
+% Run
+\draw[thick] (1,3) -- (3,3) node[midway,above] {Run};
+
+% Formula
+\node at (4,2) {$m=\dfrac{\text{Rise}}{\text{Run}}$};
+
+\end{tikzpicture}
+$$
+
+### 4.2. Critério de Transversalidade (Hard Constraint)
+
+Definimos um ângulo crítico θmax​ (ou θcrit​), que representa o limite operacional do agente. A função de validação da aresta é binária:
+
+$$
+Transponı́vel(u,v) \equal \begin{cases} True\quad se \quad \Theta\leq\Theta_{max}\quad se \quad \Theta>\Theta_{max} \end{cases}
+$$
+
+Se $$Transponı́vel(u,v)$$ for *False*, o peso da aresta torna-se infinito $$(w=∞)$$, ou, mais eficientemente, a aresta é removida da lista de adjacência.
+
+> Nota: Em sistemas de odometria inercial, picos de ruído no eixo Z podem criar "agulhas" falsas no terreno que excedem $$\Theta_{max}$$. É comum aplicar uma tolerância ($$\epsilon$$) ou um filtro de suavização antes deste passo para evitar que o robô fique preso em "paredes de ruído".
+
+**Caso: Decisão de Segurança**
+
+Contexto: Continuando a operação de resgate, o robô está diante das mesmas opções, mas agora o algoritmo possui as especificações técnicas do chassi:
+
+- Limite de Tração ($$\theta_{max}$$): 45∘ (0.78 rad). Acima disso, o robô capota para trás.
+- Resolução ($$\delta$$): 1.0 metro (para simplificar o cálculo).
+
+Revisão do Cenário 1: O "Atalho" Vertical (Escombros)
+
+- Dados: $$\Delta h=2.0m$$, $$d_{xy}=1.0m$$.
+- Cálculo do Ângulo:
+
+$$
+\theta=arctan(1.02.0)≈63.4∘
+$$
+
+Verificação: $$63.4∘>45∘$$.
+
+Decisão: VIOLAÇÃO DE SEGURANÇA. A aresta é removida. Para o grafo, o caminho direto através do escombro não existe, mesmo sendo o caminho mais curto em metros.
+
+Revisão do Cenário 2: A Rampa Suave
+
+Dados: $$\Delta h=0.5m$$, $$d_{xy}=1.0m$$.
+
+Cálculo do Ângulo:
+
+$$
+\theta=arctan(1.00.5)≈26.5∘
+$$
+
+Verificação: $$26.5∘≤45∘$$.
+
+Decisão: APROVADO. A aresta permanece no grafo e seu custo será calculado (na próxima seção).
+
+Impacto na Navegação: Graças a isso, o algoritmo de Dijkstra nem sequer considerará escalar o escombro. Ele será forçado a contornar o obstáculo ou pegar a rampa, garantindo não apenas a otimização da rota, mas a sobrevivência do robô.
 
 ---
 
