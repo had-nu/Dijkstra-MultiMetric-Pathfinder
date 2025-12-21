@@ -567,7 +567,7 @@ Diferente de grids sintéticos que são geralmente conexos, grafos derivados de 
 
 **D. Fator de Ramificação (Branching Factor)**
 
-O grau de saída máximo (\Delta_{out}) de qualquer vértice é limitado pela topologia de Moore:
+O grau de saída máximo ($$\Delta_{out}$$) de qualquer vértice é limitado pela topologia de Moore:
 
 $$
 deg_{out}(v)\leq8
