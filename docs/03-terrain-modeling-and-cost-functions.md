@@ -304,7 +304,7 @@ Se $$\text{Transponível}(u, v)$$ for *False*, o peso da aresta torna-se infinit
 
 Contexto: Continuando a operação de resgate, o robô está diante das mesmas opções, mas agora o algoritmo possui as especificações técnicas do chassi:
 
-- Limite de Tração ($$\theta_{max}$$): $$45∘ (\frac{\pi}{4} rad)$. Acima disso, o robô capota para trás.
+- Limite de Tração ($$\theta_{max}$$): $$45^\circ$$ ($$\frac{\pi}{4}$$ rad). Acima disso, o robô capota para trás.
 - Resolução ($$\delta$$): 1.0 metro (para simplificar o cálculo).
 
 Revisão do Cenário 1: O "Atalho" Vertical (Escombros)
