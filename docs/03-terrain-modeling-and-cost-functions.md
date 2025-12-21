@@ -329,43 +329,103 @@ Impacto na Navegação: Graças a isso, o algoritmo de Dijkstra nem sequer consi
 
 ---
 
-## 5. Função de Custo Composta
+## 5. Função de Custo Composta (Custo de Esforço)
 
-Se a aresta é transponível $$(\Theta\leq\Theta_{max})$$, o custo w(u,v) é modelado como uma função do esforço estimado. Utilizamos uma abordagem híbrida que combina distância e penalidade por esforço.
+Se a Seção 3 definiu a distância e a Seção 4 a viabilidade, a Seção 5 define a preferência. Aqui transformamos o grafo de uma representação geométrica para uma representação de esforço. Para um sistema de odometria e robótica, a distância mais curta nem sempre é a melhor. Muitas vezes, um desvio longo pelo plano economiza mais bateria (e oferece menos risco de derrapagem) do que uma subida curta e íngreme.
+
+Uma vez que a aresta $$(u,v)$$ foi validada como transponível $$(\theta\leq\theta_{max})$$, precisamos atribuir um peso numérico $$w(u,v)$$ que guiará a busca do algoritmo de Dijkstra.
+
+O peso não representa apenas distância (metros), mas sim o Custo Generalizado de Travessia, que pode ser interpretado como consumo de energia, tempo ou risco acumulado.
+
+### 5.1. A Equação Geral do Custo
+
+Definimos o custo da aresta como a distância física $$d_{3D}$$ modulada por um fator de penalidade associado à inclinação:
 
 $$
-w(u,v)=d_{3D}(u,v)\cdot(1+K_p\cdot P(\Theta))
+w(u,v)=d_{3D}(u,v)\cdot(1+\alpha\cdot P(\theta))
 $$
 
 Onde:
 
-    - $$d_{3D}$$: O custo base (caminho mais curto geométrico).
+- $$d_{3D}$$: Custo base geométrico (calculado na Seção 3).
+- $$\alpha$$ (Alpha): Fator de sensibilidade (parâmetro de calibração).
+    - Se $$\alpha=0$$, o terreno é tratado como se fosse plano (apenas distância importa).
+    - Se $$\alpha≫1$$, o robô evitará inclinações a todo custo.
+- $$P(\theta)$$: Função de penalidade normalizada baseada no ângulo de inclinação.
 
-    - $$K_p$$: Coeficiente de penalidade (ajuste de engenharia, "peso do esforço").
+### 5.2. Modelos de Penalidade $$(P(\theta))$$
 
-    - $$P(\Theta)$$: Função de penalidade baseada na inclinação.
+Dependendo da física do robô e da natureza dos dados (IMU ruidoso vs. LiDAR limpo), adotamos estratégias diferentes:
 
-### 5.1 Modelos de Penalidade $$(P(\Theta))$$
+#### A. Modelo Linear (Soft Penalty)
 
-Existem duas abordagens implementadas para o cálculo da penalidade:
-
-#### A. Modelo Linear (Simplificado)
-
-Assume que o custo aumenta proporcionalmente à inclinação. Bom para validação algorítmica simples.
-
-$$
-P(\Theta)=d_{xy}\mid\Delta h\mid=tan(\Theta)
-$$
-
-#### B. Modelo Exponencial (Realista)
-
-Simula o aumento drástico de consumo energético ou risco de deslizamento conforme a inclinação se aproxima do limite crítico.
+Adequado para robôs com torque sobrando ou terrenos onde a aderência é constante. O custo cresce proporcionalmente ao ângulo.
 
 $$
-P(\Theta)=e^{\beta\cdot\Theta_{max}\cdot\Theta^{-1}}
+P_{linear}(\theta)=\frac{\theta_{max}}{\theta}
 $$
 
-Onde $$\(\beta\)$$ controla a "agressividade" da curva de custo.
+#### B. Modelo Exponencial (Hard Penalty - Realista)
+
+Adequado para simular o comportamento real de motores elétricos (onde a corrente sobe exponencialmente perto do limite de torque) ou risco de deslizamento em terrenos soltos (cascalho/areia).
+
+$$
+P_{exp}(\theta)=\exp\left(\beta\cdot\frac{\theta_{max}}{\theta}\right)-1
+$$
+
+Onde $$\beta$$ controla a agressividade da curvatura do custo.
+
+### 5.3. Tratamento de Ruído (Zona Morta)
+
+Considerando que os dados provêm de Odometria Inercial (MAGF-ID), pequenas oscilações de $$\theta$$ (ex: 1∘ a 3∘) são frequentemente ruído de sensor ou vibração, e não relevo real.
+
+Para evitar que o algoritmo zigue-zagueie tentando evitar "ruído", aplicamos uma Zona Morta ($$\theta_{min}$$):
+
+$$
+P(\theta)=0\quad\text{se }\theta<\theta_{min}\approx5^\circ
+$$
+
+Sem isso, o mapa inercial cheio de micro-tremidas faria o custo flutuar loucamente, e o caminho resultante seria errático.
+
+**Caso: Batalha por Eficiência**
+
+Contexto: O robô rejeitou a parede vertical. Agora, ele precisa escolher entre duas rotas válidas para chegar ao destino final. O parâmetro de calibração do sistema é $$\alpha=10.0$$ (o robô é pesado e odeia subir ladeiras).
+
+Opção A: A Rampa Direta (Curta mas Íngreme)
+
+- Dados: Distância $$d_{3D}=1.11m$$, Inclinação $$\theta=26.5^\circ$$ ($$\approx0.46$$ rad).
+- Limite: $$\theta_{max}=45^\circ$$.
+- Razão: $$\frac{\theta_{max}}{\theta}=\frac{45}{26.5}\approx0.59$$.
+- Custo (Linear): 
+$$
+w_A=1.11\cdot(1+10\cdot0.59)=1.11\cdot(6.9)\approx7.66
+$$
+
+Opção B: O Contorno Longo (Longo mas Plano) 
+
+Existe um caminho alternativo pelo chão plano que dá a volta no obstáculo.
+
+- Dados: Distância $$d_{3D}=3.50m$$, Inclinação $$\theta\approx0^\circ$$.
+- Penalidade: $$P(0)=0.$$
+- Custo: 
+$$
+w_B=3.50\cdot(1+0)=3.50
+$$
+
+> Decisão do Algoritmo: 
+> Embora a Opção A (1.11m) seja 3x mais curta fisicamente que a Opção B (3.50m), o custo energético calculado (7.66 vs 3.50) indica que subir a rampa é energeticamente proibitivo.
+
+O Dijkstra selecionará a Opção B. O robô fará o caminho mais longo, economizando bateria e reduzindo o desgaste mecânico. Isso demonstra a "inteligência" emergente da função de custo bem modelada.
+
+### 5.4. Garantia de Correção (Não-Negatividade)
+
+Para que o Dijkstra funcione, é imperativo que $$w(u,v)≥0$$. A nossa formulação garante isso estruturalmente:
+
+    $$d_{3D}\geq\delta>0$$ (sempre positivo).
+
+    $$\alpha\geq0$$ e $$P(\theta)\geq0$$ (penalidades aditivas).
+
+Logo, não existem arestas de peso negativo, impedindo ciclos infinitos de redução de custo.
 
 ---
 
