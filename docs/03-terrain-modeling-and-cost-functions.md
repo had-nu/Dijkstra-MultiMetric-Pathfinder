@@ -262,27 +262,8 @@ $$
 
 Onde $$\(\theta \in \left[0, \frac{\pi}{2}\right)\)$$.
 
-$$
-\begin{tikzpicture}[scale=1.1]
+![Slope diagram](slope.png)
 
-% Axes
-\draw[->] (-0.5,0) -- (5,0) node[right] {$x$};
-\draw[->] (0,-0.5) -- (0,5) node[above] {$y$};
-
-% Line
-\draw[thick, red] (0.5,0.5) -- (4,4);
-
-% Rise
-\draw[thick] (1,1) -- (1,3) node[midway,left] {Rise};
-
-% Run
-\draw[thick] (1,3) -- (3,3) node[midway,above] {Run};
-
-% Formula
-\node at (4,2) {$m=\dfrac{\text{Rise}}{\text{Run}}$};
-
-\end{tikzpicture}
-$$
 
 ### 4.2. Critério de Transversalidade (Hard Constraint)
 
