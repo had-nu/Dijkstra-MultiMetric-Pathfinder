@@ -262,6 +262,16 @@ $$
 
 Onde $$\(\theta \in \left[0, \frac{\pi}{2}\right)\)$$.
 
+A inclinação é definida por:
+
+$$
+m = \frac{\Delta y}{\Delta x}
+$$
+
+onde:
+- $\Delta y$ é o *rise*
+- $\Delta x$ é o *run*
+
 ![Slope diagram](slope.png)
 
 
