@@ -294,7 +294,6 @@ $$
 \text{True},  & \text{se } \theta \le \theta_{\max} \\
 \text{False}, & \text{se } \theta > \theta_{\max}
 \end{cases}
-
 $$
 
 Se $$\text{Transponível}(u, v)$$ for *False*, o peso da aresta torna-se infinito $$(w = \infty)$$, ou, mais eficientemente, a aresta é removida da lista de adjacência.
@@ -314,10 +313,10 @@ Revisão do Cenário 1: O "Atalho" Vertical (Escombros)
 - Cálculo do Ângulo:
 
 $$
-\theta=arctan(\frac{2.0}{1.0})≈63.4∘
+\theta = \arctan\!\left(\frac{2.0}{1.0}\right) \approx 63.4^\circ
 $$
 
-Verificação: $$63.4∘ > 45∘$$.
+Verificação: $$63.4^\circ > 45^\circ$$.
 
 Decisão: VIOLAÇÃO DE SEGURANÇA. A aresta é removida. Para o grafo, o caminho direto através do escombro não existe, mesmo sendo o caminho mais curto em metros.
 
@@ -328,10 +327,10 @@ Dados: $$\Delta h=0.5m$$, $$d_{xy}=1.0m$$.
 Cálculo do Ângulo:
 
 $$
-\theta=arctan(\frac{0.5}{1.0})≈26.5∘
+\theta = \arctan\!\left(\frac{0.5}{1.0}\right) \approx 26.5^\circ
 $$
 
-Verificação: $$26.5∘ \leq 45∘$$.
+Verificação: $$26.5^\circ \leq 45^\circ$$.
 
 Decisão: APROVADO. A aresta permanece no grafo e seu custo será calculado (na próxima seção).
 
