@@ -1,5 +1,5 @@
 # Multi-Cost Pathfinding on Non-Uniform Terrain
-**Dijkstra vs A* under a Shared Cost Model**
+**Dijkstra vs A(*) under a Shared Cost Model**
 
 This repository implements and compares two canonical path planning strategies — Dijkstra and A* — applied to navigation over non-uniform terrain.
 
